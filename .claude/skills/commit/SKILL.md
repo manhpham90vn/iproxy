@@ -54,14 +54,12 @@ Scope theo module của iProxy:
 Kiểm tra file staged thuộc `api/` hay `admin/` (hoặc cả hai):
 
 **Nếu có file Python (`api/`):**
-- Chạy `cd api && source ./venv/bin/activate && ruff check` để kiểm tra lint
-- Chạy `cd api && source ./venv/bin/activate && ruff format` để format code
+- Chạy `cd api && ./format.sh` để kiểm tra lint và format code
 - Nếu có lỗi lint → báo cho user và KHÔNG commit cho đến khi fix xong
 - Re-stage các file đã được format: `git add <các file .py đã staged>`
 
 **Nếu có file TypeScript/JavaScript (`admin/`):**
-- Chạy `cd admin && npm run lint` để kiểm tra lint
-- Chạy `cd admin && npm run format` để format code
+- Chạy `cd admin && ./format.sh` để kiểm tra lint và format code
 - Nếu có lỗi → báo cho user và KHÔNG commit cho đến khi fix xong
 - Re-stage các file đã được format
 

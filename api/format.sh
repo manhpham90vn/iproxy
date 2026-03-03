@@ -2,7 +2,7 @@
 set -e
 
 echo "Running ruff format..."
-ruff format .
+./venv/bin/ruff format .
 
 echo "Running ruff check..."
-ruff check . --fix
+./venv/bin/ruff check . --fix
