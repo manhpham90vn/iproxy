@@ -2,7 +2,7 @@ from sqlalchemy import select
 
 from app.config import settings
 from app.database import AsyncSessionLocal
-from app.models import User, UserRole
+from app.models.account import User, UserRole
 from app.services.auth import hash_password
 
 
