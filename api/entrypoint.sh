@@ -8,7 +8,8 @@ if [ ! -f "/opt/venv/bin/pip" ]; then
 fi
 
 echo "Installing dependencies..."
-/opt/venv/bin/pip install --quiet --no-cache-dir ".[dev]"
+cd /app
+/opt/venv/bin/pip install --quiet --no-cache-dir -e ".[dev]"
 
 export PATH="/opt/venv/bin:$PATH"
 
