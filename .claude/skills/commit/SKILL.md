@@ -51,19 +51,22 @@ Scope theo module của iProxy:
 
 ### Bước 2: Chạy lint/format theo loại file staged
 
-Kiểm tra file staged thuộc backend hay frontend (hoặc cả hai):
+Kiểm tra file staged thuộc `api/` hay `admin/` (hoặc cả hai):
 
-**Nếu có file Python (`backend/`):**
-- Chạy `cd backend && source venv/bin/activate`
-- Nếu activate thất bại → báo cho user và KHÔNG commit
-- Chạy `ruff check .` để kiểm tra lint
-- Chạy `ruff format .` để format code
+**Nếu có file Python (`api/`):**
+- Chạy `docker compose --profile lint run api-lint` để kiểm tra lint
+- Chạy `docker compose --profile format run api-format` để format code
 - Nếu có lỗi lint → báo cho user và KHÔNG commit cho đến khi fix xong
 - Re-stage các file đã được format: `git add <các file .py đã staged>`
 
 **Nếu có file TypeScript/JavaScript (`admin/`):**
-- Chạy `cd admin && npm run lint` để kiểm tra
+- Chạy `docker compose --profile lint run admin-lint` để kiểm tra lint
+- Chạy `docker compose --profile format run admin-format` để format code
 - Nếu có lỗi → báo cho user và KHÔNG commit cho đến khi fix xong
+- Re-stage các file đã được format
+
+**Nếu có cả hai:**
+- Chạy lint/format cho cả hai service
 
 ### Bước 3: Phân tích thay đổi
 

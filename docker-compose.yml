@@ -1,0 +1,146 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: iproxy
+      POSTGRES_PASSWORD: iproxy123
+      POSTGRES_DB: iproxy
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U iproxy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./api/.env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://iproxy:iproxy123@postgres:5432/iproxy
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./api:/app
+
+  migrate:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    command: alembic upgrade head
+    env_file:
+      - ./api/.env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://iproxy:iproxy123@postgres:5432/iproxy
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./api:/app
+    profiles:
+      - migrate
+
+  api-lint:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    command: ruff check .
+    volumes:
+      - ./api:/app
+    profiles:
+      - lint
+
+  api-format:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    command: ruff format .
+    volumes:
+      - ./api:/app
+    profiles:
+      - format
+
+  admin:
+    build:
+      context: ./admin
+      dockerfile: Dockerfile
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    depends_on:
+      - api
+    volumes:
+      - ./admin:/app
+
+  admin-lint:
+    build:
+      context: ./admin
+      dockerfile: Dockerfile
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    command: npm run lint
+    volumes:
+      - ./admin:/app
+    profiles:
+      - lint
+
+  admin-format:
+    build:
+      context: ./admin
+      dockerfile: Dockerfile
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    command: npm run format
+    volumes:
+      - ./admin:/app
+    profiles:
+      - format
+
+volumes:
+  postgres_data:
+  redis_data:
