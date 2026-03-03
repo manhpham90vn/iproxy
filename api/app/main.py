@@ -7,7 +7,7 @@ from app.config import settings
 from app.models import User  # noqa: F401 - ensure models are registered
 from app.models.api_key import ApiKey  # noqa: F401
 from app.models.infra import ProxyPool  # noqa: F401
-from app.routers.admin import auth
+from app.routers.admin import accounts, auth
 from app.services.redis import close_redis, get_redis
 from app.services.seed import seed_admin
 
@@ -33,6 +33,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router, prefix="/api/admin/auth", tags=["auth"])
+app.include_router(accounts.router, prefix="/api/admin/accounts", tags=["accounts"])
 
 
 @app.get("/health")

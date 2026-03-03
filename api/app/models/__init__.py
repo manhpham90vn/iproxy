@@ -1,4 +1,12 @@
-from app.models.account import AccountStatus, AccountTier, DeviceFingerprint, GoogleAccount, User, UserRole
+from app.models.account import (
+    AccountStatus,
+    AccountTier,
+    DeviceFingerprint,
+    DeviceFingerprintVersion,
+    GoogleAccount,
+    User,
+    UserRole,
+)
 from app.models.api_key import ApiKey
 from app.models.infra import (
     IpBlacklist,
@@ -15,6 +23,7 @@ __all__ = [
     "AccountTier",
     "GoogleAccount",
     "DeviceFingerprint",
+    "DeviceFingerprintVersion",
     "ApiKey",
     "ProxyPool",
     "IpWhitelist",

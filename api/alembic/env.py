@@ -1,14 +1,14 @@
 import asyncio
 from logging.config import fileConfig
 
-from alembic import context
 from sqlalchemy.ext.asyncio import create_async_engine
 
+from alembic import context
 from app.config import settings
 from app.database import Base
-from app.models import User, GoogleAccount, DeviceFingerprint  # noqa: F401
+from app.models import DeviceFingerprint, GoogleAccount, User  # noqa: F401
 from app.models.api_key import ApiKey  # noqa: F401
-from app.models.infra import ProxyPool, IpWhitelist, IpBlacklist, TokenUsage, RequestLog  # noqa: F401
+from app.models.infra import IpBlacklist, IpWhitelist, ProxyPool, RequestLog, TokenUsage  # noqa: F401
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url)

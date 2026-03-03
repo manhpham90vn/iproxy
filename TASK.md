@@ -1,35 +1,35 @@
 # Project Tasks: iProxy - API Proxy Đa Tài khoản Google
 
-## Phase 1: Project Setup & Infrastructure
+## Phase 1: Project Setup & Infrastructure ✅ DONE
 
 ### 1.1 Backend Setup (FastAPI)
-- [ ] Setup Python 3.12+ project structure trong `api/`
-- [ ] Create `pyproject.toml` với dependencies
-- [ ] Setup FastAPI application với CORS cho Next.js trong `admin/`
-- [ ] Setup Alembic cho database migrations
-- [ ] Setup Redis connection
-- [ ] Cấu hình JWT auth cho admin API
+- [x] Setup Python 3.12+ project structure trong `api/`
+- [x] Create `pyproject.toml` với dependencies
+- [x] Setup FastAPI application với CORS cho Next.js trong `admin/`
+- [x] Setup Alembic cho database migrations
+- [x] Setup Redis connection
+- [x] Cấu hình JWT auth cho admin API
 
 ### 1.2 Frontend Setup (Next.js)
-- [ ] Khởi tạo Next.js 15 project trong `admin/` (TypeScript, App Router)
-- [ ] Cài TailwindCSS + shadcn/ui
-- [ ] Setup TanStack Query cho API calls
-- [ ] Setup Zustand cho client state
-- [ ] Tạo API client (`lib/api.ts`) trỏ tới FastAPI
-- [ ] Tạo base layout với sidebar navigation
+- [x] Khởi tạo Next.js project trong `admin/` (TypeScript, App Router)
+- [x] Cài TailwindCSS + shadcn/ui
+- [x] Setup TanStack Query cho API calls
+- [x] Setup Zustand cho client state
+- [x] Tạo API client (`lib/api.ts`) trỏ tới FastAPI
+- [x] Tạo base layout với sidebar navigation
 
 ### 1.3 Database Schema
-- [ ] Define SQLAlchemy models:
-  - `User` - admin user
-  - `GoogleAccount` - Google accounts with OAuth tokens
-  - `DeviceFingerprint` - device profiles
-  - `ApiKey` - API keys for proxy access
-  - `ProxyPool` - upstream proxy configs
-  - `IpWhitelist` / `IpBlacklist` - IP management
-  - `TokenUsage` - usage statistics
-  - `RequestLog` - access logs
-- [ ] Run initial migrations
-- [ ] Seed admin user
+- [x] Define SQLAlchemy models:
+  - [x] `User` - admin user
+  - [x] `GoogleAccount` - Google accounts with OAuth tokens
+  - [x] `DeviceFingerprint` - device profiles
+  - [x] `ApiKey` - API keys for proxy access
+  - [x] `ProxyPool` - upstream proxy configs
+  - [x] `IpWhitelist` / `IpBlacklist` - IP management
+  - [x] `TokenUsage` - usage statistics
+  - [x] `RequestLog` - access logs
+- [x] Run initial migrations
+- [x] Seed admin user
 
 ---
 
@@ -265,7 +265,7 @@
 
 ## Priority Order (Recommended)
 
-1. **Phase 1** → Project setup (foundation)
+1. **Phase 1** → Project setup (foundation) ✅ DONE
 2. **Phase 2** → Account management (core data)
 3. **Phase 3** → Proxy engine (core functionality)
 4. **Phase 5** → Security (needed before production)
