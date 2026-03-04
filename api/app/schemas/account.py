@@ -203,6 +203,35 @@ class WarmupResponse(BaseModel):
     account_id: int
     status: str
     message: str
+    is_forbidden: bool = False
+
+
+class WarmupResult(BaseModel):
+    success: bool
+    is_forbidden: bool = False
+    error: str | None = None
+
+
+# Validation Block
+class ValidationBlockRequest(BaseModel):
+    blocked: bool
+    reason: str | None = None
+    url: str | None = None
+    until: datetime | None = None
+
+
+# Protected Models
+class ProtectedModelsRequest(BaseModel):
+    models: list[str]
+
+
+# Refresh Quota Result
+class RefreshQuotaResult(BaseModel):
+    success: bool
+    is_forbidden: bool = False
+    error: str | None = None
+    models_count: int | None = None
+    subscription_tier: str | None = None
 
 
 # Switch Account

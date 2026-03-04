@@ -226,7 +226,9 @@ async def refresh_account_token(
     account.access_token = access_token
     if refresh_token:
         account.refresh_token = refresh_token
-    account.token_expiry = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
+    # DB column is TIMESTAMP WITHOUT TIME ZONE — store as naive UTC
+    expiry_utc = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
+    account.token_expiry = expiry_utc.replace(tzinfo=None)
     account.status = AccountStatus.active
     await db.commit()
     await db.refresh(account)
@@ -240,7 +242,8 @@ async def update_quota(
 ) -> GoogleAccount:
     """Update account quota data."""
     account.quota_data = json.dumps(quota_data)
-    account.quota_updated_at = datetime.now(timezone.utc)
+    # DB column is TIMESTAMP WITHOUT TIME ZONE — store as naive UTC
+    account.quota_updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
     await db.commit()
     await db.refresh(account)
     return account
@@ -268,6 +271,167 @@ async def set_validation_blocked(
     await db.commit()
     await db.refresh(account)
     return account
+
+
+async def set_protected_models(
+    db: AsyncSession,
+    account: GoogleAccount,
+    models: list[str],
+) -> GoogleAccount:
+    """Set the list of protected (allowed) models for an account."""
+    account.protected_models = json.dumps(models)
+    await db.commit()
+    await db.refresh(account)
+    return account
+
+
+def _parse_tier(subscription_tier: str | None) -> AccountTier:
+    """Map raw subscription_tier string from API to AccountTier enum."""
+    if not subscription_tier:
+        return AccountTier.free
+    tier_lower = subscription_tier.lower()
+    if "ultra" in tier_lower:
+        return AccountTier.ultra
+    if "pro" in tier_lower:
+        return AccountTier.pro
+    return AccountTier.free
+
+
+async def refresh_account_quota(
+    db: AsyncSession,
+    account: GoogleAccount,
+) -> tuple[GoogleAccount, dict]:
+    """Refresh quota by calling Google API. Returns updated account and result info."""
+    from app.services import google_oauth as oauth_service
+
+    # --- Ensure we have a valid access_token ---
+    now = datetime.now(timezone.utc)
+
+    def _is_token_expired() -> bool:
+        if not account.token_expiry:
+            return True  # No expiry stored → treat as expired to force refresh
+        expiry = account.token_expiry
+        if expiry.tzinfo is None:
+            expiry = expiry.replace(tzinfo=timezone.utc)
+        return expiry < now
+
+    need_refresh = not account.access_token or _is_token_expired()
+
+    if need_refresh:
+        if not account.refresh_token:
+            return account, {"success": False, "error": "No tokens available (no access_token and no refresh_token)"}
+        try:
+            tokens = await oauth_service.refresh_google_token(account.refresh_token)
+            account = await refresh_account_token(
+                db, account, tokens.access_token, tokens.refresh_token, tokens.expires_in
+            )
+        except Exception as e:
+            return account, {"success": False, "error": f"Token refresh failed: {e}"}
+
+    async def _force_refresh_token() -> bool:
+        nonlocal account
+        if not account.refresh_token:
+            return False
+        try:
+            tokens = await oauth_service.refresh_google_token(account.refresh_token)
+            account = await refresh_account_token(
+                db, account, tokens.access_token, tokens.refresh_token, tokens.expires_in
+            )
+            return True
+        except Exception:
+            return False
+
+    try:
+        quota_data = await oauth_service.get_account_quota(account.access_token)
+
+        # If 403 due to insufficient scopes — force-refresh token and retry once
+        if (
+            quota_data.get("is_forbidden")
+            and "insufficient authentication scopes" in (quota_data.get("forbidden_reason") or "").lower()
+        ):
+            if await _force_refresh_token():
+                quota_data = await oauth_service.get_account_quota(account.access_token)
+
+        if quota_data.get("is_forbidden"):
+            account.status = AccountStatus.forbidden
+            account = await update_quota(db, account, quota_data)
+            return account, {"success": False, "is_forbidden": True, "error": quota_data.get("forbidden_reason")}
+
+        # Sync subscription tier from API response into DB field
+        raw_tier = quota_data.get("subscription_tier")
+        account.tier = _parse_tier(raw_tier)
+        # Reset status to active on successful quota fetch (also recovers wrongly-forbidden accounts)
+        if account.status == AccountStatus.forbidden:
+            account.status = AccountStatus.active
+
+        account = await update_quota(db, account, quota_data)
+        return account, {
+            "success": True,
+            "models_count": len(quota_data.get("models", [])),
+            "subscription_tier": raw_tier,
+        }
+    except Exception as e:
+        return account, {"success": False, "error": str(e)}
+
+
+async def do_warmup(
+    db: AsyncSession,
+    account: GoogleAccount,
+) -> dict:
+    """Warm up account by making a lightweight API call. Handles 403 detection."""
+    from app.services import google_oauth as oauth_service
+
+    # Helper to force-refresh the access token using refresh_token
+    async def _force_refresh() -> bool:
+        nonlocal account
+        if not account.refresh_token:
+            return False
+        try:
+            tokens = await oauth_service.refresh_google_token(account.refresh_token)
+            account = await refresh_account_token(
+                db, account, tokens.access_token, tokens.refresh_token, tokens.expires_in
+            )
+            return True
+        except Exception:
+            return False
+
+    if not account.access_token:
+        # No access token — try to get one via refresh_token
+        if not await _force_refresh():
+            return {"success": False, "error": "No access token and token refresh failed"}
+
+    # Try to refresh token if expired by time
+    now = datetime.now(timezone.utc)
+    if account.token_expiry and account.token_expiry.replace(tzinfo=timezone.utc) < now:
+        if not await _force_refresh():
+            return {"success": False, "error": "Token expired and refresh failed"}
+
+    result = await oauth_service.warmup_account(account.access_token)
+
+    # If 403 due to insufficient scopes — force-refresh and retry once
+    error_msg = result.get("error", "")
+    if result.get("is_forbidden") and "insufficient authentication scopes" in error_msg.lower():
+        refreshed = await _force_refresh()
+        if refreshed:
+            result = await oauth_service.warmup_account(account.access_token)
+
+    if result.get("is_forbidden") and "insufficient authentication scopes" not in (result.get("error") or "").lower():
+        account.status = AccountStatus.forbidden
+        await db.commit()
+        await db.refresh(account)
+
+    return result
+
+
+async def check_and_update_forbidden_status(
+    db: AsyncSession,
+    account: GoogleAccount,
+    error_code: str,
+) -> None:
+    """Check if error indicates 403 forbidden and update account status."""
+    if error_code in ("403", "PERMISSION_DENIED", "RESOURCE_EXHAUSTED"):
+        account.status = AccountStatus.forbidden
+        await db.commit()
 
 
 async def import_accounts(db: AsyncSession, accounts_data: list[dict[str, Any]]) -> int:

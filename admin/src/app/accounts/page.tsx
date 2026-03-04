@@ -8,13 +8,15 @@ import {
   Loader2,
   MoreHorizontal,
   Play,
-  Plus,
   RefreshCw,
   Search,
+  Shield,
+  ShieldOff,
   Trash2,
   Upload,
-  X,
+  Zap,
 } from 'lucide-react'
+
 
 import { api } from '@/lib/api'
 import DashboardLayout from '@/components/layout/dashboard-layout'
@@ -129,13 +131,10 @@ export default function AccountsPage() {
   const [tierFilter, setTierFilter] = React.useState<string>('all')
   const [statusFilter, setStatusFilter] = React.useState<string>('all')
   const [selectedAccounts, setSelectedAccounts] = React.useState<Set<number>>(new Set())
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false)
+
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false)
-  const [isImportDialogOpen, setIsImportDialogOpen] = React.useState(false)
-  const [isOAuthDialogOpen, setIsOAuthDialogOpen] = React.useState(false)
-  const [oauthUrl, setOauthUrl] = React.useState('')
-  const [importData, setImportData] = React.useState('')
+  const importFileRef = React.useRef<HTMLInputElement>(null)
   const [selectedAccount, setSelectedAccount] = React.useState<Account | null>(null)
   const [formData, setFormData] = React.useState({
     email: '',
@@ -145,6 +144,21 @@ export default function AccountsPage() {
     tier: 'free',
   })
   const [actionLoading, setActionLoading] = React.useState(false)
+  const [warmupLoading, setWarmupLoading] = React.useState<Set<number>>(new Set())
+  const [isProtectedModelsDialogOpen, setIsProtectedModelsDialogOpen] = React.useState(false)
+  const [isValidationBlockDialogOpen, setIsValidationBlockDialogOpen] = React.useState(false)
+  const [protectedModelsInput, setProtectedModelsInput] = React.useState('')
+  const [validationBlockForm, setValidationBlockForm] = React.useState({
+    blocked: true,
+    reason: '',
+    url: '',
+    until: '',
+  })
+  const [logDialog, setLogDialog] = React.useState<{ open: boolean; title: string; lines: { label: string; value: string; ok?: boolean }[] }>({
+    open: false,
+    title: '',
+    lines: [],
+  })
 
   const fetchAccounts = React.useCallback(async () => {
     setLoading(true)
@@ -195,25 +209,7 @@ export default function AccountsPage() {
     setSelectedAccounts(newSelected)
   }
 
-  const handleCreate = async () => {
-    setActionLoading(true)
-    try {
-      await api.post('/api/admin/accounts', {
-        email: formData.email,
-        name: formData.name || null,
-        label: formData.label || null,
-        custom_label: formData.custom_label || null,
-        tier: formData.tier,
-      })
-      setIsCreateDialogOpen(false)
-      setFormData({ email: '', name: '', label: '', custom_label: '', tier: 'free' })
-      fetchAccounts()
-    } catch (error) {
-      console.error('Failed to create account:', error)
-    } finally {
-      setActionLoading(false)
-    }
-  }
+
 
   const handleEdit = async () => {
     if (!selectedAccount) return
@@ -252,12 +248,24 @@ export default function AccountsPage() {
     }
   }
 
-  const handleRefresh = async (id: number) => {
+  const handleRefresh = async (id: number, email: string) => {
     try {
-      await api.post(`/api/admin/accounts/${id}/refresh-quota`)
+      const data = await api.post<{ account: Account; log: Record<string, unknown> }>(`/api/admin/accounts/${id}/refresh-quota`)
       fetchAccounts()
-    } catch (error) {
-      console.error('Failed to refresh quota:', error)
+      const log = data.log || {}
+      setLogDialog({
+        open: true,
+        title: `Refresh Quota — ${email}`,
+        lines: [
+          { label: 'Status', value: log.success ? '✅ Success' : '❌ Failed', ok: Boolean(log.success) },
+          { label: 'Subscription', value: String(log.subscription_tier ?? 'N/A') },
+          { label: 'Models fetched', value: String(log.models_count ?? 0) },
+          ...(log.error ? [{ label: 'Error', value: String(log.error), ok: false }] : []),
+        ],
+      })
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error)
+      setLogDialog({ open: true, title: `Refresh Quota — ${email}`, lines: [{ label: 'Error', value: msg, ok: false }] })
     }
   }
 
@@ -267,6 +275,69 @@ export default function AccountsPage() {
       fetchAccounts()
     } catch (error) {
       console.error('Failed to switch account:', error)
+    }
+  }
+
+  const handleWarmup = async (id: number, email: string) => {
+    setWarmupLoading((prev) => new Set(prev).add(id))
+    try {
+      const data = await api.post<{ account_id: number; status: string; message: string; is_forbidden: boolean }>(`/api/admin/accounts/${id}/warmup`)
+      fetchAccounts()
+      setLogDialog({
+        open: true,
+        title: `Warmup — ${email}`,
+        lines: [
+          { label: 'Status', value: data.status === 'success' ? '✅ Success' : `❌ ${data.status}`, ok: data.status === 'success' },
+          { label: 'Message', value: data.message },
+          { label: 'Forbidden', value: data.is_forbidden ? 'Yes' : 'No', ok: !data.is_forbidden },
+        ],
+      })
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error)
+      setLogDialog({ open: true, title: `Warmup — ${email}`, lines: [{ label: 'Error', value: msg, ok: false }] })
+    } finally {
+      setWarmupLoading((prev) => {
+        const next = new Set(prev)
+        next.delete(id)
+        return next
+      })
+    }
+  }
+
+  const handleSetProtectedModels = async () => {
+    if (!selectedAccount) return
+    setActionLoading(true)
+    try {
+      const models = protectedModelsInput
+        .split(',')
+        .map((m) => m.trim())
+        .filter(Boolean)
+      await api.put(`/api/admin/accounts/${selectedAccount.id}/protected-models`, { models })
+      setIsProtectedModelsDialogOpen(false)
+      fetchAccounts()
+    } catch (error) {
+      console.error('Failed to set protected models:', error)
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleSetValidationBlock = async () => {
+    if (!selectedAccount) return
+    setActionLoading(true)
+    try {
+      await api.post(`/api/admin/accounts/${selectedAccount.id}/validation-block`, {
+        blocked: validationBlockForm.blocked,
+        reason: validationBlockForm.reason || null,
+        url: validationBlockForm.url || null,
+        until: validationBlockForm.until || null,
+      })
+      setIsValidationBlockDialogOpen(false)
+      fetchAccounts()
+    } catch (error) {
+      console.error('Failed to set validation block:', error)
+    } finally {
+      setActionLoading(false)
     }
   }
 
@@ -283,10 +354,46 @@ export default function AccountsPage() {
     }
   }
 
+  const handleBatchWarmup = async () => {
+    if (selectedAccounts.size === 0) return
+    try {
+      await api.post('/api/admin/accounts/batch-warmup', {
+        account_ids: Array.from(selectedAccounts),
+      })
+      setSelectedAccounts(new Set())
+      fetchAccounts()
+    } catch (error) {
+      console.error('Failed to batch warmup:', error)
+    }
+  }
+
+  const handleRefreshAll = async () => {
+    try {
+      await api.post('/api/admin/accounts/refresh-all')
+      fetchAccounts()
+    } catch (error) {
+      console.error('Failed to refresh all:', error)
+    }
+  }
+
+  const handleWarmupAll = async () => {
+    try {
+      await api.post('/api/admin/accounts/warmup-all')
+      fetchAccounts()
+    } catch (error) {
+      console.error('Failed to warmup all:', error)
+    }
+  }
+
   const handleExport = async () => {
     try {
-      const data = await api.get<{ accounts: Account[] }>('/api/admin/accounts/export')
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+      type ExportAccount = { email: string; refresh_token: string | null }
+      const data = await api.get<{ accounts: ExportAccount[] }>('/api/admin/accounts/export')
+      const simplified = data.accounts.map((acc) => ({
+        email: acc.email,
+        refresh_token: acc.refresh_token,
+      }))
+      const blob = new Blob([JSON.stringify(simplified, null, 2)], { type: 'application/json' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -298,17 +405,22 @@ export default function AccountsPage() {
     }
   }
 
-  const handleImport = async () => {
-    if (!importData.trim()) return
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    // Reset input so same file can be selected again
+    e.target.value = ''
     setActionLoading(true)
     try {
-      const parsed = JSON.parse(importData)
-      await api.post('/api/admin/accounts/import', { accounts: parsed })
-      setIsImportDialogOpen(false)
-      setImportData('')
+      const text = await file.text()
+      const parsed = JSON.parse(text)
+      // Support both array format [{email, refresh_token}] and export wrapper {accounts: [...]}
+      const accounts = Array.isArray(parsed) ? parsed : parsed.accounts
+      await api.post('/api/admin/accounts/import', { accounts })
       fetchAccounts()
     } catch (error) {
       console.error('Failed to import accounts:', error)
+      alert('Import failed: invalid JSON file')
     } finally {
       setActionLoading(false)
     }
@@ -318,9 +430,8 @@ export default function AccountsPage() {
     setActionLoading(true)
     try {
       const data = await api.get<{ url: string }>('/api/admin/accounts/oauth/url')
-      setOauthUrl(data.url)
       // Open OAuth URL in new window
-      const oauthWindow = window.open(data.url, '_blank', 'width=500,height=600')
+      window.open(data.url, '_blank', 'width=500,height=600')
 
       // Listen for OAuth result from popup
       const handleOAuthMessage = (event: MessageEvent) => {
@@ -370,14 +481,36 @@ export default function AccountsPage() {
             <p className="text-sm text-muted-foreground">Manage your Google accounts</p>
           </div>
           <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={handleRefreshAll} disabled={actionLoading}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Refresh All
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleWarmupAll} disabled={actionLoading}>
+              <Zap className="mr-2 h-4 w-4" />
+              Warmup All
+            </Button>
             <Button variant="outline" size="sm" onClick={handleExport}>
               <Download className="mr-2 h-4 w-4" />
               Export
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setIsImportDialogOpen(true)}>
-              <Upload className="mr-2 h-4 w-4" />
-              Import
-            </Button>
+            <>
+              <input
+                ref={importFileRef}
+                type="file"
+                accept=".json"
+                className="hidden"
+                onChange={handleImportFile}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => importFileRef.current?.click()}
+                disabled={actionLoading}
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                Import
+              </Button>
+            </>
             <Button variant="outline" size="sm" onClick={handleOAuth}>
               <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
                 <path
@@ -399,10 +532,7 @@ export default function AccountsPage() {
               </svg>
               Login Google
             </Button>
-            <Button size="sm" onClick={() => setIsCreateDialogOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Account
-            </Button>
+
           </div>
         </div>
 
@@ -459,7 +589,11 @@ export default function AccountsPage() {
                 </span>
                 <Button variant="outline" size="sm" onClick={handleBatchRefresh}>
                   <RefreshCw className="mr-2 h-4 w-4" />
-                  Refresh
+                  Refresh Quota
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleBatchWarmup}>
+                  <Zap className="mr-2 h-4 w-4" />
+                  Warmup
                 </Button>
                 <Button variant="destructive" size="sm" onClick={() => setIsDeleteDialogOpen(true)}>
                   <Trash2 className="mr-2 h-4 w-4" />
@@ -553,10 +687,52 @@ export default function AccountsPage() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleRefresh(account.id)}
+                              onClick={() => handleRefresh(account.id, account.email)}
                               title="Refresh Quota"
                             >
                               <RefreshCw className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleWarmup(account.id, account.email)}
+                              title="Warmup"
+                              disabled={warmupLoading.has(account.id)}
+                            >
+                              {warmupLoading.has(account.id) ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Zap className="h-4 w-4" />
+                              )}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                setSelectedAccount(account)
+                                setProtectedModelsInput(account.protected_models.join(', '))
+                                setIsProtectedModelsDialogOpen(true)
+                              }}
+                              title="Protected Models"
+                            >
+                              <Shield className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                setSelectedAccount(account)
+                                setValidationBlockForm({
+                                  blocked: !account.validation_blocked,
+                                  reason: account.validation_blocked_reason || '',
+                                  url: account.validation_url || '',
+                                  until: '',
+                                })
+                                setIsValidationBlockDialogOpen(true)
+                              }}
+                              title={account.validation_blocked ? 'Unblock Account' : 'Block Account'}
+                            >
+                              <ShieldOff className="h-4 w-4" />
                             </Button>
                             <Button
                               variant="ghost"
@@ -616,89 +792,7 @@ export default function AccountsPage() {
         </Card>
       </div>
 
-      {/* Create Dialog */}
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add Account</DialogTitle>
-            <DialogDescription>Create a new Google account entry</DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <label htmlFor="email" className="text-sm font-medium">
-                Email
-              </label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="user@gmail.com"
-              />
-            </div>
-            <div className="grid gap-2">
-              <label htmlFor="name" className="text-sm font-medium">
-                Name
-              </label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Display name"
-              />
-            </div>
-            <div className="grid gap-2">
-              <label htmlFor="label" className="text-sm font-medium">
-                Label
-              </label>
-              <Input
-                id="label"
-                value={formData.label}
-                onChange={(e) => setFormData({ ...formData, label: e.target.value })}
-                placeholder="Optional label"
-              />
-            </div>
-            <div className="grid gap-2">
-              <label htmlFor="custom_label" className="text-sm font-medium">
-                Custom Label
-              </label>
-              <Input
-                id="custom_label"
-                value={formData.custom_label}
-                onChange={(e) => setFormData({ ...formData, custom_label: e.target.value })}
-                placeholder="Custom display label"
-              />
-            </div>
-            <div className="grid gap-2">
-              <label htmlFor="tier" className="text-sm font-medium">
-                Tier
-              </label>
-              <Select
-                value={formData.tier}
-                onValueChange={(value) => setFormData({ ...formData, tier: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="free">Free</SelectItem>
-                  <SelectItem value="pro">Pro</SelectItem>
-                  <SelectItem value="ultra">Ultra</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleCreate} disabled={actionLoading || !formData.email}>
-              {actionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Create
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
@@ -798,58 +892,133 @@ export default function AccountsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Import Dialog */}
-      <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+
+
+      {/* Protected Models Dialog */}
+      <Dialog open={isProtectedModelsDialogOpen} onOpenChange={setIsProtectedModelsDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Import Accounts</DialogTitle>
+            <DialogTitle>Protected Models</DialogTitle>
             <DialogDescription>
-              Paste JSON array or upload a file. Format: [{'{'}&quot;email&quot;: &quot;...&quot;,
-              &quot;name&quot;: &quot;...&quot;, &quot;tier&quot;: &quot;free&quot;{'}'}]
+              Set allowed models for {selectedAccount?.email}. Leave empty to allow all models.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <label className="text-sm font-medium">JSON Data</label>
-              <textarea
-                className="min-h-[200px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                placeholder='[{"email": "user@gmail.com", "name": "User", "tier": "free"}]'
-                value={importData}
-                onChange={(e) => setImportData(e.target.value)}
-              />
-            </div>
-            <div className="grid gap-2">
-              <label className="text-sm font-medium">Or upload file</label>
+              <label className="text-sm font-medium">Models (comma-separated)</label>
               <Input
-                type="file"
-                accept=".json"
-                onChange={(e) => {
-                  const file = e.target.files?.[0]
-                  if (!file) return
-                  const reader = new FileReader()
-                  reader.onload = (ev) => {
-                    try {
-                      const content = ev.target?.result as string
-                      const parsed = JSON.parse(content)
-                      const accounts = parsed.accounts || parsed
-                      setImportData(JSON.stringify(accounts, null, 2))
-                    } catch {
-                      console.error('Invalid JSON file')
-                    }
-                  }
-                  reader.readAsText(file)
-                }}
+                value={protectedModelsInput}
+                onChange={(e) => setProtectedModelsInput(e.target.value)}
+                placeholder="gemini-2.0-flash, gemini-1.5-pro"
               />
+              <p className="text-xs text-muted-foreground">
+                Current: {selectedAccount?.protected_models.length
+                  ? selectedAccount.protected_models.join(', ')
+                  : 'All models allowed'}
+              </p>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsImportDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setIsProtectedModelsDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleImport} disabled={actionLoading || !importData.trim()}>
+            <Button onClick={handleSetProtectedModels} disabled={actionLoading}>
               {actionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Import
+              Save
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Validation Block Dialog */}
+      <Dialog open={isValidationBlockDialogOpen} onOpenChange={setIsValidationBlockDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {validationBlockForm.blocked ? 'Block Account' : 'Unblock Account'}
+            </DialogTitle>
+            <DialogDescription>
+              {validationBlockForm.blocked
+                ? `Block ${selectedAccount?.email} from being used`
+                : `Unblock ${selectedAccount?.email}`}
+            </DialogDescription>
+          </DialogHeader>
+          {validationBlockForm.blocked && (
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <label className="text-sm font-medium">Reason</label>
+                <Input
+                  value={validationBlockForm.reason}
+                  onChange={(e) =>
+                    setValidationBlockForm({ ...validationBlockForm, reason: e.target.value })
+                  }
+                  placeholder="Reason for blocking"
+                />
+              </div>
+              <div className="grid gap-2">
+                <label className="text-sm font-medium">Validation URL</label>
+                <Input
+                  value={validationBlockForm.url}
+                  onChange={(e) =>
+                    setValidationBlockForm({ ...validationBlockForm, url: e.target.value })
+                  }
+                  placeholder="https://..."
+                />
+              </div>
+              <div className="grid gap-2">
+                <label className="text-sm font-medium">Block Until (optional)</label>
+                <Input
+                  type="datetime-local"
+                  value={validationBlockForm.until}
+                  onChange={(e) =>
+                    setValidationBlockForm({ ...validationBlockForm, until: e.target.value })
+                  }
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsValidationBlockDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant={validationBlockForm.blocked ? 'destructive' : 'default'}
+              onClick={handleSetValidationBlock}
+              disabled={actionLoading}
+            >
+              {actionLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {validationBlockForm.blocked ? 'Block' : 'Unblock'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Action Log Dialog */}
+      <Dialog open={logDialog.open} onOpenChange={(open) => setLogDialog((prev) => ({ ...prev, open }))}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{logDialog.title}</DialogTitle>
+          </DialogHeader>
+          <div className="mt-2 space-y-2 rounded-md border bg-muted/40 p-3 text-sm font-mono">
+            {logDialog.lines.map((line, i) => (
+              <div key={i} className="flex gap-2">
+                <span className="w-32 shrink-0 text-muted-foreground">{line.label}</span>
+                <span
+                  className={
+                    line.ok === true
+                      ? 'text-green-500'
+                      : line.ok === false
+                        ? 'text-red-400'
+                        : 'text-foreground'
+                  }
+                >
+                  {line.value}
+                </span>
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setLogDialog((prev) => ({ ...prev, open: false }))}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

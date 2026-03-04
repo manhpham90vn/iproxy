@@ -21,9 +21,11 @@ from app.schemas import (
     FingerprintVersionResponse,
     ImportRequest,
     ImportResponse,
+    ProtectedModelsRequest,
     ReorderRequest,
     SwitchAccountResponse,
     ToggleProxyRequest,
+    ValidationBlockRequest,
     WarmupResponse,
 )
 from app.services import account as account_service
@@ -284,9 +286,87 @@ async def batch_refresh_accounts(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    # This would refresh tokens - placeholder implementation
-    # In production, this would call Google API to refresh tokens
-    return BatchRefreshResponse(refreshed=0, failed=0, total=len(request.account_ids))
+    refreshed = 0
+    failed = 0
+    for account_id in request.account_ids:
+        account = await account_service.get_account(db, account_id)
+        if account:
+            _, result = await account_service.refresh_account_quota(db, account)
+            if result.get("success"):
+                refreshed += 1
+            else:
+                failed += 1
+        else:
+            failed += 1
+
+    return BatchRefreshResponse(refreshed=refreshed, failed=failed, total=len(request.account_ids))
+
+
+# Refresh all accounts (must be before /{account_id})
+
+
+@router.post("/refresh-all", response_model=BatchRefreshResponse)
+async def refresh_all_accounts(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    accounts = await account_service.get_all_accounts(db)
+    refreshed = 0
+    failed = 0
+    for account in accounts:
+        _, result = await account_service.refresh_account_quota(db, account)
+        if result.get("success"):
+            refreshed += 1
+        else:
+            failed += 1
+
+    return BatchRefreshResponse(refreshed=refreshed, failed=failed, total=len(accounts))
+
+
+# Batch warmup (must be before /{account_id})
+
+
+@router.post("/batch-warmup", response_model=BatchRefreshResponse)
+async def batch_warmup_accounts(
+    request: BatchIdsRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    refreshed = 0
+    failed = 0
+    for account_id in request.account_ids:
+        account = await account_service.get_account(db, account_id)
+        if account:
+            result = await account_service.do_warmup(db, account)
+            if result.get("success"):
+                refreshed += 1
+            else:
+                failed += 1
+        else:
+            failed += 1
+
+    return BatchRefreshResponse(refreshed=refreshed, failed=failed, total=len(request.account_ids))
+
+
+# Warmup all accounts (must be before /{account_id})
+
+
+@router.post("/warmup-all", response_model=BatchRefreshResponse)
+async def warmup_all_accounts(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    accounts = await account_service.get_all_accounts(db)
+    refreshed = 0
+    failed = 0
+    for account in accounts:
+        result = await account_service.do_warmup(db, account)
+        if result.get("success"):
+            refreshed += 1
+        else:
+            failed += 1
+
+    return BatchRefreshResponse(refreshed=refreshed, failed=failed, total=len(accounts))
 
 
 # Import accounts (must be before /{account_id})
@@ -405,14 +485,23 @@ async def warmup_account(
     if not account:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found")
 
-    # Placeholder - in production, this would trigger account warmup
-    return WarmupResponse(account_id=account_id, status="pending", message="Warmup initiated")
+    result = await account_service.do_warmup(db, account)
+
+    status_str = "success" if result.get("success") else ("forbidden" if result.get("is_forbidden") else "error")
+    return WarmupResponse(
+        account_id=account_id,
+        status=status_str,
+        message=result.get("error", "Warmup completed successfully")
+        if not result.get("success")
+        else "Warmup completed successfully",
+        is_forbidden=result.get("is_forbidden", False),
+    )
 
 
 # Refresh quota
 
 
-@router.post("/{account_id}/refresh-quota", response_model=AccountResponse)
+@router.post("/{account_id}/refresh-quota")
 async def refresh_quota(
     account_id: int,
     db: AsyncSession = Depends(get_db),
@@ -422,7 +511,53 @@ async def refresh_quota(
     if not account:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found")
 
-    # Placeholder - in production, this would fetch quota from Google API
+    account, result = await account_service.refresh_account_quota(db, account)
+    return {
+        "account": AccountResponse.model_validate(account).model_dump(),
+        "log": result,
+    }
+
+
+# Validation block
+
+
+@router.post("/{account_id}/validation-block", response_model=AccountResponse)
+async def set_validation_block(
+    account_id: int,
+    request: ValidationBlockRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    account = await account_service.get_account(db, account_id)
+    if not account:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found")
+
+    account = await account_service.set_validation_blocked(
+        db,
+        account,
+        blocked=request.blocked,
+        reason=request.reason,
+        url=request.url,
+        until=request.until,
+    )
+    return AccountResponse.model_validate(account)
+
+
+# Protected models
+
+
+@router.put("/{account_id}/protected-models", response_model=AccountResponse)
+async def set_protected_models(
+    account_id: int,
+    request: ProtectedModelsRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    account = await account_service.get_account(db, account_id)
+    if not account:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found")
+
+    account = await account_service.set_protected_models(db, account, request.models)
     return AccountResponse.model_validate(account)
 
 
