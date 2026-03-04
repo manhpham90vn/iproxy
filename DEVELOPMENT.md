@@ -7,120 +7,80 @@
 - Docker & Docker Compose
 - Git
 
-## Setup
+## Quick Start (Docker)
 
-### 1. Clone repo
-
-```bash
-git clone <repo-url> && cd iproxy
-```
-
-### 2. Backend (FastAPI)
-
-```bash
-cd api
-python -m venv venv
-source venv/bin/activate
-pip install -e ".[dev]"
-```
-
-### 3. Frontend (Next.js Admin)
-
-```bash
-cd admin
-npm install
-```
-
-### 4. Start PostgreSQL & Redis
+Run all services in Docker:
 
 ```bash
 docker compose up -d
 ```
 
-| Service  | Port | Default |
-|----------|------|---------|
-| Postgres | 5432 | user: `iproxy`, pass: `iproxy123`, db: `iproxy` |
-| Redis    | 6379 | no password |
+Services:
+- **API**: http://localhost:8000
+- **Admin**: http://localhost:3000
+- **Postgres**: localhost:5432
+- **Redis**: localhost:6379
 
-### 5. Configure environment
+## Local Development
 
-```bash
-# Backend
-cp api/.env.example api/.env
+### Option 1: Full Local
 
-# Frontend
-cp admin/.env.example admin/.env.local
-```
-
-Important variables in `admin/.env.local`:
-```
-NEXT_PUBLIC_API_URL=http://localhost:8000
-```
-
-### 6. Run migrations
+Start infrastructure only:
 
 ```bash
-cd api
-alembic upgrade head
+docker compose up -d postgres redis
 ```
 
-Create new migration when changing models:
-
-```bash
-alembic revision --autogenerate -m "description"
-alembic upgrade head
-```
-
-### 7. Run the app
+Then run services locally:
 
 **Backend:**
 ```bash
 cd api
+python -m venv venv
+source venv/bin/activate
+pip install -e ".[dev]"
+cp .env.example .env
+alembic upgrade head
 uvicorn app.main:app --reload --port 8000
 ```
 
 **Frontend:**
 ```bash
 cd admin
+npm install
+cp .env.example .env.local
 npm run dev
 ```
 
-Access:
-- Admin Panel: http://localhost:3000
-- API docs: http://localhost:8000/docs
+### Option 2: Mixed (Backend local, Frontend Docker)
+
+```bash
+docker compose up -d postgres redis admin
+# Run API locally
+cd api && source venv/bin/activate && uvicorn app.main:app --reload --port 8000
+```
 
 ## Format & Lint
 
-**Backend** uses [Ruff](https://docs.astral.sh/ruff/):
+### Backend (Ruff)
 
 ```bash
 cd api
-
-# Check linting
-ruff check .
-
-# Auto-fix
 ruff check . --fix
-
-# Format code
 ruff format .
 ```
 
 Config: line length 120, Python 3.12, rules `E`, `F`, `I`.
 
-**Frontend** uses ESLint + Prettier:
+### Frontend (ESLint + Prettier)
 
 ```bash
 cd admin
-
-# Lint
 npm run lint
-
-# Format
 npm run format
 ```
 
-## Test
+## Testing
 
 ```bash
 # Backend
@@ -128,6 +88,14 @@ cd api && pytest
 
 # Frontend
 cd admin && npm test
+```
+
+## Database Migrations
+
+```bash
+cd api
+alembic revision --autogenerate -m "description"
+alembic upgrade head
 ```
 
 ## Project Structure
@@ -139,22 +107,69 @@ iproxy/
 │   │   ├── main.py         # FastAPI entry point
 │   │   ├── config.py      # Pydantic settings
 │   │   ├── database.py    # SQLAlchemy async engine
-│   │   ├── models/        # SQLAlchemy models
+│   │   ├── models/        # SQLAlchemy models (User, GoogleAccount, ApiKey, ProxyPool)
 │   │   ├── routers/       # API route handlers
 │   │   │   └── admin/     # Admin API endpoints
 │   │   ├── schemas/       # Pydantic schemas
 │   │   └── services/      # Business logic
 │   ├── alembic/           # Database migrations
 │   ├── tests/             # Test suite
-│   └── pyproject.toml     # Dependencies
+│   └── pyproject.toml     # Dependencies (Ruff, pytest)
 │
 ├── admin/                  # Next.js frontend
 │   ├── src/
 │   │   ├── app/          # App Router pages
 │   │   ├── components/   # React components
 │   │   ├── lib/          # API client, utilities
-│   │   └── hooks/        # Custom React hooks
+│   │   ├── hooks/        # Custom React hooks
+│   │   └── store/        # Zustand state stores
 │   └── package.json
 │
-└── docker-compose.yml      # PostgreSQL + Redis services
+└── docker-compose.yml      # All services (Postgres + Redis + API + Admin)
 ```
+
+## Configuration
+
+### Environment Variables
+
+**Backend** (`api/.env`):
+```bash
+DATABASE_URL=postgresql+asyncpg://admin:admin@postgres:5432/iproxy
+REDIS_URL=redis://redis:6379/0
+SECRET_KEY=change-me-in-production
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=admin123
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+```
+
+**Frontend** (`admin/.env.local`):
+```bash
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
+
+## Architecture
+
+### Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| Backend Framework | FastAPI (Python 3.12+) |
+| ORM | SQLAlchemy + Alembic |
+| Database | PostgreSQL |
+| Cache | Redis |
+| Frontend | Next.js 16 (App Router) |
+| UI | TailwindCSS + shadcn/ui + Radix |
+| State | TanStack Query + Zustand |
+
+### Key API Endpoints
+
+**Admin API** (prefix: `/api/admin`):
+- `POST /api/admin/auth/login` — Admin authentication
+- `GET/POST /api/admin/accounts` — Account management
+- `GET/POST /api/admin/keys` — API key management
+
+**Proxy API**:
+- `/v1/*` — OpenAI compatible endpoints
+- `/v1beta/*` — Gemini native endpoints
+- `/mcp/*` — MCP protocol endpoints
