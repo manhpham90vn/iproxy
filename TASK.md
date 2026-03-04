@@ -1,22 +1,22 @@
-# Project Tasks: iProxy - API Proxy Đa Tài khoản Google
+# Project Tasks: iProxy - Multi-Account Google API Proxy
 
 ## Phase 1: Project Setup & Infrastructure ✅ DONE
 
 ### 1.1 Backend Setup (FastAPI)
-- [x] Setup Python 3.12+ project structure trong `api/`
-- [x] Create `pyproject.toml` với dependencies
-- [x] Setup FastAPI application với CORS cho Next.js trong `admin/`
-- [x] Setup Alembic cho database migrations
+- [x] Setup Python 3.12+ project structure in `api/`
+- [x] Create `pyproject.toml` with dependencies
+- [x] Setup FastAPI application with CORS for Next.js in `admin/`
+- [x] Setup Alembic for database migrations
 - [x] Setup Redis connection
-- [x] Cấu hình JWT auth cho admin API
+- [x] Configure JWT auth for admin API
 
 ### 1.2 Frontend Setup (Next.js)
-- [x] Khởi tạo Next.js project trong `admin/` (TypeScript, App Router)
-- [x] Cài TailwindCSS + shadcn/ui
-- [x] Setup TanStack Query cho API calls
-- [x] Setup Zustand cho client state
-- [x] Tạo API client (`lib/api.ts`) trỏ tới FastAPI
-- [x] Tạo base layout với sidebar navigation
+- [x] Initialize Next.js project in `admin/` (TypeScript, App Router)
+- [x] Install TailwindCSS + shadcn/ui
+- [x] Setup TanStack Query for API calls
+- [x] Setup Zustand for client state
+- [x] Create API client (`lib/api.ts`) pointing to FastAPI
+- [x] Create base layout with sidebar navigation
 
 ### 1.3 Database Schema
 - [x] Define SQLAlchemy models:
@@ -33,49 +33,51 @@
 
 ---
 
-## Phase 2: Account Management (Google OAuth)
+## Phase 2: Account Management (Google OAuth) ✅ DONE
 
 ### 2.1 OAuth Flow
-- [ ] Implement Google OAuth 2.0 flow (auto & manual)
-- [ ] Create OAuth callback handler
-- [ ] Store refresh tokens securely
-- [ ] Implement token refresh logic
+- [x] Implement Google OAuth 2.0 flow (auto & manual)
+- [x] Create OAuth callback handler
+- [x] Store refresh tokens securely
+- [x] Implement token refresh logic
 
 ### 2.2 Account CRUD API
-- [ ] `GET /api/admin/accounts` — list với filters
-- [ ] `POST /api/admin/accounts` — add via OAuth
-- [ ] `DELETE /api/admin/accounts/{id}` — delete
-- [ ] `POST /api/admin/accounts/batch-delete` — batch delete
-- [ ] `POST /api/admin/accounts/import` — import JSON
-- [ ] `GET /api/admin/accounts/export` — export JSON
+- [x] `GET /api/admin/accounts` — list with filters
+- [x] `POST /api/admin/accounts` — add via OAuth
+- [x] `DELETE /api/admin/accounts/{id}` — delete
+- [x] `POST /api/admin/accounts/batch-delete` — batch delete
+- [x] `POST /api/admin/accounts/import` — import JSON
+- [x] `GET /api/admin/accounts/export` — export JSON
 
 ### 2.3 Account Operations API
-- [ ] `POST /api/admin/accounts/{id}/refresh-quota`
-- [ ] `POST /api/admin/accounts/batch-refresh`
-- [ ] `POST /api/admin/accounts/{id}/warmup`
-- [ ] 403 Forbidden detection & auto-disable
-- [ ] Validation blocking with expiration
-- [ ] Protected models per account
-- [ ] Account labels & custom naming
+- [x] `POST /api/admin/accounts/{id}/refresh-quota`
+- [x] `POST /api/admin/accounts/batch-refresh`
+- [x] `POST /api/admin/accounts/{id}/warmup`
+- [x] 403 Forbidden detection & auto-disable
+- [x] Validation blocking with expiration
+- [x] Protected models per account
+- [x] Account labels & custom naming
+- [x] Account switch (current account)
 
 ### 2.4 Device Fingerprint API
-- [ ] `GET/POST /api/admin/accounts/{id}/fingerprint`
-- [ ] Capture/generate modes
-- [ ] Bind/unbind fingerprint
-- [ ] Version history & restore
+- [x] `GET/POST /api/admin/accounts/{id}/fingerprint`
+- [x] Capture/generate modes
+- [x] Bind/unbind fingerprint
+- [x] Version history & restore
 
 ### 2.5 Accounts Page (Next.js)
-- [ ] Grid/list view toggle
-- [ ] Search và filter (tier, status)
-- [ ] Account detail dialog/sheet
-- [ ] Device fingerprint management UI
-- [ ] Import/export UI
-- [ ] Batch operations UI
-- [ ] Pagination
+- [x] Table view
+- [x] Search and filter (tier, status)
+- [x] Account detail
+- [x] Device fingerprint management UI
+- [x] Import/export UI
+- [x] Batch operations UI
+- [x] Pagination
+- [x] Account reordering
 
 ---
 
-## Phase 3: Proxy Engine (Core)
+## Phase 3: Proxy Engine (Core) ❌ NOT STARTED
 
 ### 3.1 Protocol Support
 **OpenAI Compatible:**
@@ -115,11 +117,11 @@
 
 ---
 
-## Phase 4: Proxy Configuration
+## Phase 4: Proxy Configuration ❌ NOT STARTED
 
 ### 4.1 Proxy Pool API
 - [ ] `GET/POST /api/admin/proxy/pool` — CRUD upstream proxies
-- [ ] Health check với configurable interval
+- [ ] Health check with configurable interval
 - [ ] Auto-failover
 - [ ] Latency tracking
 - [ ] Account-to-proxy binding
@@ -138,7 +140,7 @@
 
 ### 4.4 Proxy Page (Next.js)
 - [ ] Server start/stop control
-- [ ] Port và API key config
+- [ ] Port and API key config
 - [ ] Timeout settings
 - [ ] Proxy pool management UI
 - [ ] Model mapping UI (regex editor)
@@ -147,12 +149,12 @@
 
 ---
 
-## Phase 5: Security & Access Control
+## Phase 5: Security & Access Control ❌ NOT STARTED
 
 ### 5.1 Authentication
 - [ ] `POST /api/admin/auth/login` — JWT login
 - [ ] `POST /api/admin/auth/logout`
-- [ ] Auth middleware cho admin routes
+- [ ] Auth middleware for admin routes
 - [ ] Auth modes: off / strict / all_except_health / auto
 - [ ] API key authentication (Bearer token)
 - [ ] Hot-reload auth config
@@ -178,7 +180,7 @@
 
 ---
 
-## Phase 6: Monitoring & Analytics
+## Phase 6: Monitoring & Analytics ⚠️ PARTIAL
 
 ### 6.1 Monitor API
 - [ ] `GET /api/admin/monitor/stream` — SSE real-time events
@@ -191,11 +193,11 @@
 - [ ] `GET /api/admin/stats/accounts` — per-account breakdown
 
 ### 6.3 Dashboard Page (Next.js)
-- [ ] Account statistics overview
-- [ ] Quota monitoring (Gemini Pro/Image, Claude)
-- [ ] Best accounts ranking
-- [ ] Low quota alerts
-- [ ] Quick actions (Add, Refresh, Export)
+- [x] Account statistics overview
+- [x] Quota monitoring (Gemini Pro/Image, Claude)
+- [x] Best accounts ranking
+- [x] Low quota alerts
+- [x] Quick actions (Add, Refresh, Export)
 
 ### 6.4 Monitor Page (Next.js)
 - [ ] Real-time request list (SSE)
@@ -210,7 +212,7 @@
 
 ---
 
-## Phase 7: API Keys & Settings
+## Phase 7: API Keys & Settings ❌ NOT STARTED
 
 ### 7.1 API Keys API
 - [ ] `GET/POST /api/admin/keys`
@@ -240,33 +242,33 @@
 
 ---
 
-## Phase 8: Testing & Deployment
+## Phase 8: Testing & Deployment ⚠️ PARTIAL
 
 ### 8.1 Testing
-- [ ] Unit tests cho core logic (pytest)
-- [ ] Integration tests cho proxy endpoints
+- [ ] Unit tests for core logic (pytest)
+- [ ] Integration tests for proxy endpoints
 - [ ] OAuth flow testing
 - [ ] Frontend component tests (Vitest)
 
 ### 8.2 Deployment
-- [ ] Dockerfile cho backend
-- [ ] Dockerfile cho frontend (Next.js standalone)
-- [ ] Docker Compose cho dev (backend + frontend + postgres + redis)
+- [ ] Dockerfile for backend
+- [ ] Dockerfile for frontend (Next.js standalone)
+- [x] Docker Compose for dev (backend + frontend + postgres + redis)
 - [ ] Production docker-compose
 - [ ] Nginx reverse proxy config
 - [ ] Environment variable management
 
 ### 8.3 Documentation
-- [ ] API documentation (OpenAPI/Swagger — tự động từ FastAPI)
-- [ ] User guide
-- [ ] Deployment guide
+- [x] API documentation (OpenAPI/Swagger — auto-generated from FastAPI)
+- [x] README.md
+- [x] DEVELOPMENT.md
 
 ---
 
 ## Priority Order (Recommended)
 
 1. **Phase 1** → Project setup (foundation) ✅ DONE
-2. **Phase 2** → Account management (core data)
+2. **Phase 2** → Account management (core data) ✅ DONE
 3. **Phase 3** → Proxy engine (core functionality)
 4. **Phase 5** → Security (needed before production)
 5. **Phase 4** → Proxy config (enhancement)

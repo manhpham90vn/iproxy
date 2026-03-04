@@ -17,7 +17,6 @@ import {
   Zap,
 } from 'lucide-react'
 
-
 import { api } from '@/lib/api'
 import DashboardLayout from '@/components/layout/dashboard-layout'
 import { Badge } from '@/components/ui/badge'
@@ -154,7 +153,11 @@ export default function AccountsPage() {
     url: '',
     until: '',
   })
-  const [logDialog, setLogDialog] = React.useState<{ open: boolean; title: string; lines: { label: string; value: string; ok?: boolean }[] }>({
+  const [logDialog, setLogDialog] = React.useState<{
+    open: boolean
+    title: string
+    lines: { label: string; value: string; ok?: boolean }[]
+  }>({
     open: false,
     title: '',
     lines: [],
@@ -209,8 +212,6 @@ export default function AccountsPage() {
     setSelectedAccounts(newSelected)
   }
 
-
-
   const handleEdit = async () => {
     if (!selectedAccount) return
     setActionLoading(true)
@@ -250,14 +251,20 @@ export default function AccountsPage() {
 
   const handleRefresh = async (id: number, email: string) => {
     try {
-      const data = await api.post<{ account: Account; log: Record<string, unknown> }>(`/api/admin/accounts/${id}/refresh-quota`)
+      const data = await api.post<{ account: Account; log: Record<string, unknown> }>(
+        `/api/admin/accounts/${id}/refresh-quota`,
+      )
       fetchAccounts()
       const log = data.log || {}
       setLogDialog({
         open: true,
         title: `Refresh Quota — ${email}`,
         lines: [
-          { label: 'Status', value: log.success ? '✅ Success' : '❌ Failed', ok: Boolean(log.success) },
+          {
+            label: 'Status',
+            value: log.success ? '✅ Success' : '❌ Failed',
+            ok: Boolean(log.success),
+          },
           { label: 'Subscription', value: String(log.subscription_tier ?? 'N/A') },
           { label: 'Models fetched', value: String(log.models_count ?? 0) },
           ...(log.error ? [{ label: 'Error', value: String(log.error), ok: false }] : []),
@@ -265,7 +272,11 @@ export default function AccountsPage() {
       })
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error)
-      setLogDialog({ open: true, title: `Refresh Quota — ${email}`, lines: [{ label: 'Error', value: msg, ok: false }] })
+      setLogDialog({
+        open: true,
+        title: `Refresh Quota — ${email}`,
+        lines: [{ label: 'Error', value: msg, ok: false }],
+      })
     }
   }
 
@@ -281,20 +292,33 @@ export default function AccountsPage() {
   const handleWarmup = async (id: number, email: string) => {
     setWarmupLoading((prev) => new Set(prev).add(id))
     try {
-      const data = await api.post<{ account_id: number; status: string; message: string; is_forbidden: boolean }>(`/api/admin/accounts/${id}/warmup`)
+      const data = await api.post<{
+        account_id: number
+        status: string
+        message: string
+        is_forbidden: boolean
+      }>(`/api/admin/accounts/${id}/warmup`)
       fetchAccounts()
       setLogDialog({
         open: true,
         title: `Warmup — ${email}`,
         lines: [
-          { label: 'Status', value: data.status === 'success' ? '✅ Success' : `❌ ${data.status}`, ok: data.status === 'success' },
+          {
+            label: 'Status',
+            value: data.status === 'success' ? '✅ Success' : `❌ ${data.status}`,
+            ok: data.status === 'success',
+          },
           { label: 'Message', value: data.message },
           { label: 'Forbidden', value: data.is_forbidden ? 'Yes' : 'No', ok: !data.is_forbidden },
         ],
       })
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error)
-      setLogDialog({ open: true, title: `Warmup — ${email}`, lines: [{ label: 'Error', value: msg, ok: false }] })
+      setLogDialog({
+        open: true,
+        title: `Warmup — ${email}`,
+        lines: [{ label: 'Error', value: msg, ok: false }],
+      })
     } finally {
       setWarmupLoading((prev) => {
         const next = new Set(prev)
@@ -532,7 +556,6 @@ export default function AccountsPage() {
               </svg>
               Login Google
             </Button>
-
           </div>
         </div>
 
@@ -730,7 +753,9 @@ export default function AccountsPage() {
                                 })
                                 setIsValidationBlockDialogOpen(true)
                               }}
-                              title={account.validation_blocked ? 'Unblock Account' : 'Block Account'}
+                              title={
+                                account.validation_blocked ? 'Unblock Account' : 'Block Account'
+                              }
                             >
                               <ShieldOff className="h-4 w-4" />
                             </Button>
@@ -791,8 +816,6 @@ export default function AccountsPage() {
           </CardContent>
         </Card>
       </div>
-
-
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
@@ -892,8 +915,6 @@ export default function AccountsPage() {
         </DialogContent>
       </Dialog>
 
-
-
       {/* Protected Models Dialog */}
       <Dialog open={isProtectedModelsDialogOpen} onOpenChange={setIsProtectedModelsDialogOpen}>
         <DialogContent>
@@ -912,7 +933,8 @@ export default function AccountsPage() {
                 placeholder="gemini-2.0-flash, gemini-1.5-pro"
               />
               <p className="text-xs text-muted-foreground">
-                Current: {selectedAccount?.protected_models.length
+                Current:{' '}
+                {selectedAccount?.protected_models.length
                   ? selectedAccount.protected_models.join(', ')
                   : 'All models allowed'}
               </p>
@@ -994,7 +1016,10 @@ export default function AccountsPage() {
       </Dialog>
 
       {/* Action Log Dialog */}
-      <Dialog open={logDialog.open} onOpenChange={(open) => setLogDialog((prev) => ({ ...prev, open }))}>
+      <Dialog
+        open={logDialog.open}
+        onOpenChange={(open) => setLogDialog((prev) => ({ ...prev, open }))}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>{logDialog.title}</DialogTitle>
@@ -1018,7 +1043,9 @@ export default function AccountsPage() {
             ))}
           </div>
           <DialogFooter>
-            <Button onClick={() => setLogDialog((prev) => ({ ...prev, open: false }))}>Close</Button>
+            <Button onClick={() => setLogDialog((prev) => ({ ...prev, open: false }))}>
+              Close
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { Activity, AlertTriangle, Key, Loader2, Shield, Users, Zap } from 'lucide-react'
+import { Activity, AlertTriangle, Key, Loader2, Users } from 'lucide-react'
 import DashboardLayout from '@/components/layout/dashboard-layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'

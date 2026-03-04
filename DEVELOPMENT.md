@@ -1,6 +1,6 @@
 # Development Guide
 
-## Yêu cầu
+## Requirements
 
 - Python 3.12+
 - Node.js 20+
@@ -18,7 +18,7 @@ git clone <repo-url> && cd iproxy
 ### 2. Backend (FastAPI)
 
 ```bash
-cd backend
+cd api
 python -m venv venv
 source venv/bin/activate
 pip install -e ".[dev]"
@@ -31,51 +31,51 @@ cd admin
 npm install
 ```
 
-### 4. Khởi động PostgreSQL & Redis
+### 4. Start PostgreSQL & Redis
 
 ```bash
 docker compose up -d
 ```
 
-| Service  | Port | Mặc định |
-|----------|------|-----------|
+| Service  | Port | Default |
+|----------|------|---------|
 | Postgres | 5432 | user: `iproxy`, pass: `iproxy123`, db: `iproxy` |
-| Redis    | 6379 | không password |
+| Redis    | 6379 | no password |
 
-### 5. Cấu hình environment
+### 5. Configure environment
 
 ```bash
 # Backend
-cp backend/.env.example backend/.env
+cp api/.env.example api/.env
 
 # Frontend
 cp admin/.env.example admin/.env.local
 ```
 
-Các biến quan trọng trong `admin/.env.local`:
+Important variables in `admin/.env.local`:
 ```
 NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
 
-### 6. Chạy migration
+### 6. Run migrations
 
 ```bash
-cd backend
+cd api
 alembic upgrade head
 ```
 
-Tạo migration mới khi thay đổi models:
+Create new migration when changing models:
 
 ```bash
-alembic revision --autogenerate -m "mô tả thay đổi"
+alembic revision --autogenerate -m "description"
 alembic upgrade head
 ```
 
-### 7. Chạy app
+### 7. Run the app
 
 **Backend:**
 ```bash
-cd backend
+cd api
 uvicorn app.main:app --reload --port 8000
 ```
 
@@ -85,16 +85,16 @@ cd admin
 npm run dev
 ```
 
-Truy cập:
+Access:
 - Admin Panel: http://localhost:3000
 - API docs: http://localhost:8000/docs
 
 ## Format & Lint
 
-**Backend** dùng [Ruff](https://docs.astral.sh/ruff/):
+**Backend** uses [Ruff](https://docs.astral.sh/ruff/):
 
 ```bash
-cd backend
+cd api
 
 # Check linting
 ruff check .
@@ -106,9 +106,9 @@ ruff check . --fix
 ruff format .
 ```
 
-Cấu hình: line length 120, Python 3.12, rules `E`, `F`, `I`.
+Config: line length 120, Python 3.12, rules `E`, `F`, `I`.
 
-**Frontend** dùng ESLint + Prettier:
+**Frontend** uses ESLint + Prettier:
 
 ```bash
 cd admin
@@ -124,7 +124,7 @@ npm run format
 
 ```bash
 # Backend
-cd backend && pytest
+cd api && pytest
 
 # Frontend
 cd admin && npm test
@@ -134,27 +134,27 @@ cd admin && npm test
 
 ```
 iproxy/
-├── backend/                  # FastAPI service
+├── api/                     # FastAPI backend
 │   ├── app/
-│   │   ├── main.py           # FastAPI entry point
-│   │   ├── config.py         # Pydantic settings
-│   │   ├── database.py       # SQLAlchemy async engine
-│   │   ├── models/           # ORM models
-│   │   ├── routers/          # API routers
-│   │   │   ├── admin/        # Admin REST API (/api/admin/*)
-│   │   │   └── proxy/        # Proxy endpoints (/v1/*, /v1beta/*, /mcp/*)
-│   │   └── services/         # Business logic
-│   ├── alembic/              # Database migrations
-│   ├── tests/                # Test suite
-│   ├── pyproject.toml        # Dependencies & tool config
-│   └── .env                  # Environment variables
-├── admin/                    # Next.js admin panel
+│   │   ├── main.py         # FastAPI entry point
+│   │   ├── config.py      # Pydantic settings
+│   │   ├── database.py    # SQLAlchemy async engine
+│   │   ├── models/        # SQLAlchemy models
+│   │   ├── routers/       # API route handlers
+│   │   │   └── admin/     # Admin API endpoints
+│   │   ├── schemas/       # Pydantic schemas
+│   │   └── services/      # Business logic
+│   ├── alembic/           # Database migrations
+│   ├── tests/             # Test suite
+│   └── pyproject.toml     # Dependencies
+│
+├── admin/                  # Next.js frontend
 │   ├── src/
-│   │   ├── app/              # App Router pages
-│   │   ├── components/       # React components
-│   │   ├── lib/              # API client, utils
-│   │   └── hooks/            # Custom hooks
-│   ├── package.json
-│   └── .env.local            # Frontend env vars
-└── docker-compose.yml        # PostgreSQL + Redis
+│   │   ├── app/          # App Router pages
+│   │   ├── components/   # React components
+│   │   ├── lib/          # API client, utilities
+│   │   └── hooks/        # Custom React hooks
+│   └── package.json
+│
+└── docker-compose.yml      # PostgreSQL + Redis services
 ```

@@ -1,86 +1,86 @@
 ---
 name: commit
-description: Tạo commit theo chuẩn Conventional Commits cho dự án iProxy
-argument-hint: "[loại commit hoặc mô tả thay đổi]"
+description: Create commits following Conventional Commits standard for iProxy project
+argument-hint: "[commit type or change description]"
 ---
 
-## Quy tắc commit
+## Commit Rules
 
-Tạo commit theo chuẩn **Conventional Commits** với format:
+Create commits following **Conventional Commits** format:
 
 ```
 <type>(<scope>): <description>
 ```
 
-### Type (bắt buộc)
+### Type (required)
 
-| Type       | Mô tả                                       |
-|------------|---------------------------------------------|
-| `feat`     | Thêm tính năng mới                          |
-| `fix`      | Sửa bug                                     |
-| `docs`     | Thay đổi documentation                      |
-| `style`    | Format code, không thay đổi logic           |
-| `refactor` | Refactor code, không thêm feature hay fix bug|
-| `perf`     | Cải thiện performance                        |
-| `test`     | Thêm hoặc sửa test                          |
-| `build`    | Thay đổi build system hoặc dependencies     |
-| `ci`       | Thay đổi CI/CD config                       |
-| `chore`    | Các thay đổi khác (không ảnh hưởng src/test)|
+| Type       | Description                                      |
+|------------|--------------------------------------------------|
+| `feat`     | Add new feature                                 |
+| `fix`      | Fix bug                                         |
+| `docs`     | Documentation changes                           |
+| `style`    | Code formatting, no logic changes               |
+| `refactor` | Refactor code, no feature or bug fix           |
+| `perf`     | Improve performance                             |
+| `test`     | Add or fix tests                               |
+| `build`    | Build system or dependencies changes            |
+| `ci`       | CI/CD configuration changes                     |
+| `chore`    | Other changes (no impact on src/test)           |
 
-### Scope (tuỳ chọn)
+### Scope (optional)
 
-Scope theo module của iProxy:
+Scope based on iProxy modules:
 - **Backend**: `auth`, `accounts`, `proxy`, `models`, `db`, `api`, `security`, `config`, `redis`, `migration`, `routing`, `mcp`
 - **Frontend**: `ui`, `dashboard`, `monitor`, `stats`, `keys`, `settings`
 - **Infra**: `docker`, `ci`, `deps`
 
-### Quy tắc
+### Rules
 
-1. Description viết bằng tiếng Anh, lowercase, không dấu chấm cuối
-2. Tối đa 72 ký tự cho dòng đầu
-3. Nếu có breaking change, thêm `!` sau type/scope: `feat(api)!: change response format`
-4. Body (tuỳ chọn) giải thích chi tiết bằng tiếng Việt hoặc Anh
+1. Description in English, lowercase, no trailing period
+2. Max 72 characters for first line
+3. For breaking changes, add `!` after type/scope: `feat(api)!: change response format`
+4. Body (optional) can be in English or Vietnamese
 
-## Quy trình
+## Workflow
 
-### Bước 1: Kiểm tra staged changes
+### Step 1: Check staged changes
 
-- Chạy `git diff --staged --name-status` để xem đã có gì staged chưa
-- Nếu ĐÃ có staged → đi tiếp bước 2
-- Nếu CHƯA có staged → hỏi user muốn stage gì
+- Run `git diff --staged --name-status` to see what's staged
+- If already staged → proceed to step 2
+- If NOT staged → ask user what to stage
 
-### Bước 2: Chạy lint/format theo loại file staged
+### Step 2: Run lint/format based on staged file types
 
-Kiểm tra file staged thuộc `api/` hay `admin/` (hoặc cả hai):
+Check if staged files belong to `api/` or `admin/` (or both):
 
-**Nếu có file Python (`api/`):**
-- Chạy `cd api && ./format.sh` để kiểm tra lint và format code
-- Nếu có lỗi lint → báo cho user và KHÔNG commit cho đến khi fix xong
-- Re-stage các file đã được format: `git add <các file .py đã staged>`
+**If Python files (`api/`):**
+- Run `cd api && ./format.sh` to check lint and format
+- If lint errors → report to user and DO NOT commit until fixed
+- Re-stage formatted files: `git add <staged .py files>`
 
-**Nếu có file TypeScript/JavaScript (`admin/`):**
-- Chạy `cd admin && ./format.sh` để kiểm tra lint và format code
-- Nếu có lỗi → báo cho user và KHÔNG commit cho đến khi fix xong
-- Re-stage các file đã được format
+**If TypeScript/JavaScript files (`admin/`):**
+- Run `cd admin && ./format.sh` to check lint and format
+- If errors → report to user and DO NOT commit until fixed
+- Re-stage formatted files
 
-**Nếu có cả hai:**
-- Chạy lint/format cho cả hai service
+**If both:**
+- Run lint/format for both services
 
-### Bước 3: Phân tích thay đổi
+### Step 3: Analyze changes
 
-- Phân loại files trong staged theo type: code (.py, .ts, .tsx), docs (.md), config, migration, etc.
-- Nếu có NHIỀU loại file khác nhau → gộp thành 1 commit với type phổ quát nhất
-  - Ưu tiên: `feat` > `fix` > `refactor` > `chore` > `docs`
-- Nếu chỉ có 1 loại → dùng type phù hợp
+- Classify staged files by type: code (.py, .ts, .tsx), docs (.md), config, migration, etc.
+- If MANY different file types → merge into 1 commit with most general type
+  - Priority: `feat` > `fix` > `refactor` > `chore` > `docs`
+- If only 1 type → use appropriate type
 
-### Bước 4: Tạo commit message
+### Step 4: Create commit message
 
-- Xác định type dựa trên nội dung thay đổi
-- Xác định scope dựa trên thư mục/module bị ảnh hưởng
-- Nếu user truyền `$ARGUMENTS`, dùng làm gợi ý cho description
-- Tạo message theo Conventional Commits format
+- Determine type based on change content
+- Determine scope based on affected directory/module
+- If user provides `$ARGUMENTS`, use as hint for description
+- Create message following Conventional Commits format
 
-### Bước 5: Commit
+### Step 5: Commit
 
-- Hiển thị commit message cho user xác nhận
-- Chạy `git commit -m "<message>"`
+- Show commit message for user confirmation
+- Run `git commit -m "<message>"`

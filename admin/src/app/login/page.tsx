@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, Loader2, Lock, User } from 'lucide-react'
-import { api } from '@/lib/api'
 import { useAuthStore } from '@/store/auth'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
